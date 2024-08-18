@@ -1,0 +1,111 @@
+- abstract public class Tetris
+필드.
+final private int screenWidth		-> 화면 가로길이
+final private int screenHeight		-> 화면 세로길이
+final private int boardWidth		-> board 가로길이
+final private int boardHeight		-> board 세로길이
+
+메소드.
+abstract public void printScreen()
+static native clearConsole() 		-> 화면 clear만을 수행
+static native nonBlockingInput() 	-> non blocking으로 받은 입력 반환
+						-> 하, 좌, 우, enter, esc를 순서대로 1, 2, 3, 4, 5로 반환.
+	
+- public class PlayState implements PlayStateInterface
+필드.
+private int speed
+private int score
+@Board currentBoard
+@Block currentBlock
+@Block tmpMovingBlock 	-> block 이동을 위한 임시 변수
+private InputThread inputThread
+private BlockMovingThread blockMovingThread
+@private boolean canGoDown -> 아래로 더 내려갈 수 있는지. 기본값 true moveUp()에서 반영.
+private (String) 입력 큐.
+
+
+메소드.
+void printScreen();			-> 게임 화면/board 가로/세로 맞춰서 출력. board 내용 출력하면 됨.
+						-> [][]에서 [0][0]이 왼쪽 위, [n][n]이 오른쪽 아래로 가게 출력.
+void printScore();				-> 게임 종료 화면 가로/세로 맞춰서 점수와 함께 출력.
+
+@void addBlockToBoard();		-> block에 해당되는 좌표를 board에 반영.
+@boolean isEnd();				-> canGoDown이 false인지 검사. 이후 true로 지정.
+@void clearLine();				-> 전체 board 검사해서 꽉 찬 부분은 삭제 후 밀어줌. 점수 증가.
+boolean isGameOver();			-> 어차피 여기서 끝나지는 않음. 구현할 필요x. 처음 들어오는 블록이 못 들어가는 경우 게임이 끝남.
+@boolean isValid();				-> key좌표 기준으로 4x4 범위 검사. block이 존재하는 곳에 이미 block이 있으면 false.
+						-> 자세한 설명은 문서 참고.
+
+@void generateBlock();			-> 임의의 값으로
+@void setCurrentBlockNull();		-> block null로 지정. thread 때문에 필요함.
+
+-> move/rotate 전에 기존의 block을 tmp에 저장함. (isValid() 판단 시에 필요함.) 자세한 설명은 문서 참고.
+@void moveBlockLeft();			-> block의 key 좌표 이동.
+@void moveBlockRight();
+@void moveBlockDown();
+@void moveBlockUp();			-> canGoDown false로 지정. 올라가는 경우는 더 못 내려가는 경우만이 존재.
+@void rotateBlockRight();			-> block의 상태 변화. +1 %4 시계방향
+@void rotateBlockLeft();			-> -1로. 반시계방향
+
+void startInputThread();			-> thread 시작.
+void endInputThread();			-> thread 종료.
+void startBlockThread();			-> thread 시작.
+void endBlockThread();			-> thread 종료.
+boolean isInputEntered();		-> 큐가 !empty()인 경우 true.
+String getInputValue();			-> 큐에서 값 받아서 문자열로 반환.
+
+
+- public class StartState implements StartStateInterface
+메소드.
+public void printScreen(); 	-> 시작 화면 가로/세로 맞춰서 출력.
+
+
+- public class Board 
+필드.
+int testrisBoard[][]		 	-> 0이면 아무것도 없음. 1이면 block 존재.
+					-> [][]에서 앞에꺼는 세로, 뒤에꺼는 가로임.
+					-> 쌓여있는 block과 내려오는 block 모두 가지고 있음.
+					-> 생성자에서 가로/세로 맞춰 배열이 생성됨.
+					-> [][]에서 [0][0]이 왼쪽 위, [n][n]이 오른쪽 아래.
+
+- public class Block
+/*
+총 7개의 block. J, L, O, S, T, Z, I.
+각 block 별 static(초기화)으로 4개의 모양(회전)이 정의되어 있음. block 객체는 기준 좌표(왼쪽 위)와 현재 상태(4개 중 하나)를 저장하고 있음.
+상태는 0, 1, 2, 3으로 저장함. 회전은 이 상태를 바꾸는 연산. 0,1,2,3은 오른쪽으로 회전하는 형태이다.
+*/
+필드.
+private int keyX		-> 기준좌표. 세로 좌표임. [][]에서 앞에꺼. board width 반영해서 생성자로 초깃값 지정.
+private int keyY		-> 기준좌표. 가로 좌표임. [][]에서 뒤에꺼. 생성자로 초깃값 지정.
+private int statement	-> 0~3의 값 가지고 있음. block 상태(회전).
+// private char blockType을... 쓰려고 했으나 생각해보니까 다형성 때문에 그럴 필요가 없다. Block 타입으로 받고 static에 접근할 수 있으므로.
+private int[][][] shape	-> 생성자로 4개 생성.
+
+class jBlock extends Block	-> 생성자에서 각 상태 지정.
+					-> 이때 부모의 static 필드는 상속되고, 각 class 별 static으로 적용됨.
+	private shape[4][][] 초기화.		-> 상태 별 형태 저장. 4x4x4. 4x4로 나타내야 하므로 4개.
+							-> { ... } 꼴로 작성하기 위해 Block의 필드로 쓰는 대신 각 형태 별로 선언함.
+							-> 0,1,2,3은 오른쪽으로 회전하는 형태.
+class lBlock extends Block
+class oBlock extends Block
+class sBlock extends Block
+class tBlock extends Block
+class zBlock extends Block
+class iBlock extends Block
+
+
+
+
+- class InputThread -> 내부적으로 큐를 사용하여 입력을 받아옴.
+메소드.
+void run();	-> 입력값 가져와서 큐에 String으로 저장.
+		-> native 함수에서 반환하는 입력값은 a, d, s, r 순으로 1, 2, 3, 4로 하고, 그 외의 값은 0으로 한다.
+
+- class BlockMovingThread
+메소드.
+void run();	-> 한 칸씩 내림. board와 block, tmp 사용.
+
+
+
+
+
