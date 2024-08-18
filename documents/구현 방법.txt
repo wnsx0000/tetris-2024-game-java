@@ -1,3 +1,5 @@
+이준혁 작성.
+
 - abstract public class Tetris
 필드.
 final private int screenWidth		-> 화면 가로길이
